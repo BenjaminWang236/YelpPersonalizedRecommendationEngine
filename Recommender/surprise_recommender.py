@@ -1,9 +1,10 @@
+from collections import defaultdict
+import json
+from pathlib import Path
+import pandas as pd
 import surprise
 from surprise import Dataset, Reader, BaselineOnly, dump
 from surprise.model_selection import train_test_split
-import pandas as pd
-from collections import defaultdict
-import json
 
 def get_top_n(predictions, n=10):
     """Return the top-N recommendation for each user from a set of predictions.
@@ -34,16 +35,31 @@ def get_top_n(predictions, n=10):
 
 def main():
     # If database not updated, and have trained model/predictions, load it
-    use_prev_top_n = True
-    use_prev_trained_model = False
-    use_prev_predictions = False
-    
-    load_from_dataframe = False
-    num_to_recommend = 10
-    
-    file_path = 'yelp_reviews.csv'
-    # algo_progress_dir = '.\\algo_checkpoints\\'
-    algo_progress_dir = './algo_checkpoints/'
+    recommender_settings_file = 'recommender_settings.json'
+    path = Path(recommender_settings_file)
+    if not path.is_file():
+        setting_dict = {
+            'use_prev_top_n': True, 
+            'use_prev_trained_model': False, 
+            'use_prev_predictions': False, 
+            'load_from_dataframe': False, 
+            'num_to_recommend': 10,
+            'file_path': 'yelp_reviews.csv',
+            'algo_progress_dir': './algo_checkpoints/'
+        }
+        print(f"Save recommender settings to {recommender_settings_file}")
+        with open(recommender_settings_file, 'w') as f:
+            json.dump(setting_dict, f)
+    with open(recommender_settings_file, 'r') as f:
+        setting_dict = json.load(f)
+    use_prev_top_n = setting_dict['use_prev_top_n']
+    use_prev_predictions = setting_dict['use_prev_predictions']
+    use_prev_trained_model = setting_dict['use_prev_trained_model']
+    load_from_dataframe = setting_dict['load_from_dataframe']
+    num_to_recommend = setting_dict['num_to_recommend']
+    file_path = setting_dict['file_path']
+    algo_progress_dir = setting_dict['algo_progress_dir']
+
     # Best algo for both RMSE and runtime: BaselineOnly(). Using best parameter found in limited gridSearch
     algo = BaselineOnly(bsl_options={'method': 'sgd', 'reg': 0.02, 'learning_rate': 0.01, 'n_epochs': 20})
     file_name = f"{algo_progress_dir}algo_final_serialize_{str(algo.__class__.__name__)}"

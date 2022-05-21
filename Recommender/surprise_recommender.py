@@ -114,6 +114,9 @@ def main():
     top_n_iid_name = (
         f"{algo_progress_dir}top_n_iid_final_json_{str(algo.__class__.__name__)}.json"
     )
+    testset_name = (
+        f"{algo_progress_dir}testset_final_json_{str(algo.__class__.__name__)}.json"
+    )
 
     """
     In final version, we will only train (fit) the recommendation 
@@ -144,7 +147,8 @@ def main():
                 df = read_sql_into_dataframe()
                 data = Dataset.load_from_df(df=df, reader=reader)
             trainset, testset = train_test_split(data, test_size=0.25)
-
+            with open(testset_name, "w") as f:
+                json.dump(testset, f)
             if use_prev_trained_model:
                 _, algo = dump.load(file_name)
             else:
@@ -166,7 +170,7 @@ def main():
             json.dump(top_n_iid_only, f)
         use_prev_top_n = True
 
-    # debug:
+    # debug print-outs: Comment out in final version
     from more_itertools import take
 
     # n_items = take(num_to_recommend, top_n.items())
@@ -178,7 +182,20 @@ def main():
     # pp.pprint(n_items)
     pp.pprint(n_items_iid_only)
 
-    # TODO: Request-handler for test-user-ids & another one for returning top-N-recommendations
+    # TODO: Request-handler for test-user-ids
+    # Note: The test-users are in testset, saved to testset_name file in algo_checkpoints dir.
+    #       Format of testset JSON file is [[uid, bid, stars], [uid, bid, stars], ...]
+    #       Extract the uid out of each test-user-id, remove duplicates, and that's the list of users
+    #       to send to the frontend.
+    with open(testset_name, "r") as f:
+        testset_reloaded = json.load(f)
+    testset_uid_only = [uid for (uid, _, _) in testset_reloaded]
+    testset_uid_only = list(set(testset_uid_only))  # Removing duplicates
+
+    # TODO: Request-handler for returning list of business_id recommendations for specified testset user
+    #       top_n_iid_only is the dictionary of top-n recommendations for all testset users.
+    # print(top_n_iid_only["kF6HYfuRDv-yAj4W8aGqbA"])   # How to access the dictionary for specific user
+    # Returns "[['ReX09lhufLTAx19krkltDA', 'C_uHOxo1zIJaQuzAY6JvxQ']]", bussiness_id list
 
 
 if __name__ == "__main__":

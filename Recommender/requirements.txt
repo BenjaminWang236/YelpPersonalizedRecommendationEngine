@@ -1,0 +1,6 @@
+numpy
+pandas
+more-itertools
+scikit-surprise
+# mysql-connector-python	# Requires Python 3.7, incompatitble with installation by conda. Use pip to install instead
+pymysql

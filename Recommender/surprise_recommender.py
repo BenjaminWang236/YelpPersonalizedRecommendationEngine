@@ -57,7 +57,7 @@ def read_sql_into_dataframe() -> pd.DataFrame:
         exit()
     print("Successfully connected to the database")
     # cursor = cnx.cursor()
-    query = "SELECT user_id, business_id, stars FROM Reviews"
+    query = "SELECT uid, bid, stars FROM Reviews"
     # cursor.execute(query)
     df = pd.read_sql_query(query, cnx)
     print("Closing the connection and cursor...")

@@ -1,5 +1,6 @@
 /mysql-connector-java-8.0.28
 /YelpDataset-CptS451
+/Recommender/algo_checkpoints
 json-simple-1.1.1.jar
 .DS_Store
 *.csv

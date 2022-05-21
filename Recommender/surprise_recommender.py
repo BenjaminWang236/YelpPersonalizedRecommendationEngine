@@ -39,6 +39,11 @@ def get_top_n(predictions, n=10) -> defaultdict:
 
 
 def read_sql_into_dataframe() -> pd.DataFrame:
+    """Yunyan's SQL connection code snippet from test.py. Modified for Reviews query.
+
+    Returns:
+        pd.DataFrame: df with user_id, business_id, stars from Yelp Reviews table
+    """
     try:
         cnx = mysql.connector.connect(
             user="admin",
@@ -66,9 +71,17 @@ def read_sql_into_dataframe() -> pd.DataFrame:
     return df
 
 
-def main():
-    # If database not updated, and have trained model/predictions, load it
-    recommender_settings_file = "recommender_settings.json"
+def load_settings(
+    recommender_settings_file: Path = "recommender_settings.json",
+) -> list:
+    """Load in the Surprise recommender settings from a JSON file.
+
+    Args:
+        recommender_settings_file (Path, optional): file-path to setting. Defaults to "recommender_settings.json".
+
+    Returns:
+        list: all 7 settings in a list
+    """
     path = Path(recommender_settings_file)
     if not path.is_file():
         setting_dict = {
@@ -80,43 +93,70 @@ def main():
             "file_path": "yelp_reviews.csv",
             "algo_progress_dir": "./algo_checkpoints/",
         }
-        print(f"Save recommender settings to {recommender_settings_file}")
+        print(f"Saving default recommender settings to {recommender_settings_file}")
         with open(recommender_settings_file, "w") as f:
             json.dump(setting_dict, f)
     with open(recommender_settings_file, "r") as f:
         setting_dict = json.load(f)
-    use_prev_top_n = setting_dict["use_prev_top_n"]
-    use_prev_predictions = setting_dict["use_prev_predictions"]
-    use_prev_trained_model = setting_dict["use_prev_trained_model"]
-    load_from_dataframe = setting_dict["load_from_dataframe"]
-    num_to_recommend = setting_dict["num_to_recommend"]
-    file_path = setting_dict["file_path"]
-    algo_progress_dir = setting_dict["algo_progress_dir"]
+    ret = [
+        setting_dict["use_prev_top_n"],
+        setting_dict["use_prev_predictions"],
+        setting_dict["use_prev_trained_model"],
+        setting_dict["load_from_dataframe"],
+        setting_dict["num_to_recommend"],
+        setting_dict["file_path"],
+        setting_dict["algo_progress_dir"],
+    ]
+    return ret
 
+
+def preparation(algo_progress_dir: str = "./algo_checkpoints/") -> list:
+    """Prepare the algorithm, with optimal parameters, and the filenames to saved intermediate results.
+
+    Args:
+        algo_progress_dir (str, optional): internal directory. Defaults to "./algo_checkpoints/".
+
+    Returns:
+        list: algorithm for recommender, and all filenames used internally
+    """
     # Best algo for both RMSE and runtime: BaselineOnly(). Using best parameter found in limited gridSearch
-    algo = BaselineOnly(
-        bsl_options={
-            "method": "sgd",
-            "reg": 0.02,
-            "learning_rate": 0.01,
-            "n_epochs": 20,
-        }
-    )
-    file_name = (
-        f"{algo_progress_dir}algo_final_serialize_{str(algo.__class__.__name__)}"
-    )
-    pred_name = (
-        f"{algo_progress_dir}predictions_final_serialize_{str(algo.__class__.__name__)}"
-    )
-    top_n_name = (
-        f"{algo_progress_dir}top_n_final_json_{str(algo.__class__.__name__)}.json"
-    )
-    top_n_iid_name = (
-        f"{algo_progress_dir}top_n_iid_final_json_{str(algo.__class__.__name__)}.json"
-    )
-    testset_name = (
-        f"{algo_progress_dir}testset_final_json_{str(algo.__class__.__name__)}.json"
-    )
+    ret = [
+        BaselineOnly(
+            bsl_options={
+                "method": "sgd",
+                "reg": 0.02,
+                "learning_rate": 0.01,
+                "n_epochs": 20,
+            }
+        )
+    ]
+    algo_name = str(ret[0].__class__.__name__)
+    ret.append(f"{algo_progress_dir}algo_final_serialize_{algo_name}")
+    ret.append(f"{algo_progress_dir}predictions_final_serialize_{algo_name}")
+    ret.append(f"{algo_progress_dir}top_n_final_json_{algo_name}.json")
+    ret.append(f"{algo_progress_dir}top_n_iid_final_json_{algo_name}.json")
+    ret.append(f"{algo_progress_dir}testset_final_json_{algo_name}.json")
+    return ret
+
+
+def main():
+    [
+        use_prev_top_n,
+        use_prev_predictions,
+        use_prev_trained_model,
+        load_from_dataframe,
+        num_to_recommend,
+        file_path,
+        algo_progress_dir,
+    ] = load_settings()
+    [
+        algo,
+        file_name,
+        pred_name,
+        top_n_name,
+        top_n_iid_name,
+        testset_name,
+    ] = preparation(algo_progress_dir)
 
     """
     In final version, we will only train (fit) the recommendation 

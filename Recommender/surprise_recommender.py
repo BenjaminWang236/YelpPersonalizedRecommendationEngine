@@ -277,11 +277,12 @@ def searchuser():
         exit()
     print("Successfully connected to the database")
     user_search = request.args.get('user')
-    q="Select * from Yelp_User where userid={0}".format(user_search)
-    cmd.execute(q)
-    row=cmd.fetchone()
+    q = "SELECT * FROM Users WHERE uid='{0}'".format(user_search)
+    cursor = cnx.cursor()
+    cursor.execute(q)
+    row=cursor.fetchone()
     if(row):
-        return json.dump(row)
+        return json.dumps(row, indent=4, sort_keys=True, default=str)
     else:
         return "Record Not Found!"
 
@@ -306,11 +307,12 @@ def searchbusiness():
         exit()
     print("Successfully connected to the database")
     business_search = request.args.get('business')
-    q="Select * from Business where bid={0}".format(business_search)
-    cmd.execute(q)
-    row=cmd.fetchone()
+    q="Select * from Businesses where bid='{0}'".format(business_search)
+    cursor = cnx.cursor()
+    cursor.execute(q)
+    row=cursor.fetchone()
     if(row):
-        return json.dump(row)
+        return json.dumps(row, indent=4, sort_keys=True, default=str)
     else:
         return "Record Not Found!"
 

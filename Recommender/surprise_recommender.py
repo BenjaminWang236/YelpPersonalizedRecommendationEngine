@@ -8,7 +8,7 @@ from surprise import Dataset, Reader, BaselineOnly, dump
 from surprise.model_selection import train_test_split
 import mysql.connector
 from mysql.connector import errorcode
-from flask import Flask,jsonify
+from flask import Flask,jsonify,request
 
 app = Flask(__name__)
 
@@ -141,26 +141,15 @@ def preparation(algo_progress_dir: str = "./algo_checkpoints/") -> list:
     ret.append(f"{algo_progress_dir}testset_final_json_{algo_name}.json")
     return ret
 
-@app.route('/sampleurl',methods = ['GET'])
-def samplerequestfunction():
-    required_params = ['name', 'age']
-    missing_params = [key for key in required_params if key not in request.args.keys()]
+@app.route('/sampleurl', methods = ['POST'])
+def samplefunction():
+    #access your DB get your results here
+    user = request.args.get('nm')
+    data = {"data":user}
+    "return jsonify(data)"
+    return user
 
-    if len(missing_params)==0:
-        data = {
-                "name": request.argv['name'],
-                "age": request.argv['age']
-               }
-
-        return jsonify(data)
-    else:
-         resp = {
-                 "status":"failure",
-                 "error" : "missing parameters",
-                 "message" : "Provide %s in request" %(missing_params)
-                }
-         return jsonify(resp)
-
+@app.route('/recommend', methods = ['POST'])
 def main():
     [
         use_prev_top_n,
@@ -185,7 +174,7 @@ def main():
     algorithm once, save it, then use it to make predictions
     for ALL users in the testset all at once each time the database 
     is updated. Save the predictions, then use them to make recommendations.
-    Save the recommendations, the use them to respond to user requests.
+    Save the recommendations, then use them to respond to user requests.
     """
     if use_prev_top_n:
         with open(top_n_name, "r") as f:
@@ -243,8 +232,8 @@ def main():
 
     # pp.pprint(n_items)
     pp.pprint(n_items_iid_only)
-
-    # TODO: Request-handler for test-user-ids
+    
+    # Request-handler for test-user-ids
     # Note: The test-users are in testset, saved to testset_name file in algo_checkpoints dir.
     #       Format of testset JSON file is [[uid, bid, stars], [uid, bid, stars], ...]
     #       Extract the uid out of each test-user-id, remove duplicates, and that's the list of users
@@ -254,10 +243,78 @@ def main():
     testset_uid_only = [uid for (uid, _, _) in testset_reloaded]
     testset_uid_only = list(set(testset_uid_only))  # Removing duplicates
 
-    # TODO: Request-handler for returning list of business_id recommendations for specified testset user
+    user_list = request.args.get('user')
+    #take input from user list
+
+    res = list(top_n_iid_only.keys())[0]
+
+
+    # Request-handler for returning list of business_id recommendations for specified testset user
     #       top_n_iid_only is the dictionary of top-n recommendations for all testset users.
     # print(top_n_iid_only["kF6HYfuRDv-yAj4W8aGqbA"])   # How to access the dictionary for specific user
     # Returns "[['ReX09lhufLTAx19krkltDA', 'C_uHOxo1zIJaQuzAY6JvxQ']]", bussiness_id list
+    recommend_list = top_n_iid_only[user_list]
+    ans = ' '.join(str(v) for v in recommend_list)
+    return ans
+
+@app.route('/searchuser', methods = ['GET'])
+def searchuser():
+    try:
+        cnx = mysql.connector.connect(
+            user="admin",
+            password="606HaoYunLai606!",
+            port="3306",
+            host="database-1.c50spqkkfz7j.us-west-1.rds.amazonaws.com",
+            database="db",
+        )
+    except mysql.connector.Error as err:
+        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+            print("Something is wrong with your user name or password")
+        elif err.errno == errorcode.ER_BAD_DB_ERROR:
+            print("Database does not exist")
+        else:
+            print(err)
+        exit()
+    print("Successfully connected to the database")
+    user_search = request.args.get('user')
+    q="Select * from Yelp_User where userid={0}".format(user_search)
+    cmd.execute(q)
+    row=cmd.fetchone()
+    if(row):
+        return json.dump(row)
+    else:
+        return "Record Not Found!"
+
+
+@app.route('/searchbusiness', methods = ['GET'])
+def searchbusiness():
+    try:
+        cnx = mysql.connector.connect(
+            user="admin",
+            password="606HaoYunLai606!",
+            port="3306",
+            host="database-1.c50spqkkfz7j.us-west-1.rds.amazonaws.com",
+            database="db",
+        )
+    except mysql.connector.Error as err:
+        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+            print("Something is wrong with your user name or password")
+        elif err.errno == errorcode.ER_BAD_DB_ERROR:
+            print("Database does not exist")
+        else:
+            print(err)
+        exit()
+    print("Successfully connected to the database")
+    business_search = request.args.get('business')
+    q="Select * from Business where bid={0}".format(business_search)
+    cmd.execute(q)
+    row=cmd.fetchone()
+    if(row):
+        return json.dump(row)
+    else:
+        return "Record Not Found!"
+
+
 
 
 if __name__ == "__main__":

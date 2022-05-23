@@ -221,6 +221,7 @@ def main():
             json.dump(top_n_iid_only, f)
         use_prev_top_n = True
 
+    """
     # debug print-outs: Comment out in final version
     from more_itertools import take
 
@@ -232,7 +233,9 @@ def main():
 
     # pp.pprint(n_items)
     pp.pprint(n_items_iid_only)
-    
+    """
+
+    """
     # Request-handler for test-user-ids
     # Note: The test-users are in testset, saved to testset_name file in algo_checkpoints dir.
     #       Format of testset JSON file is [[uid, bid, stars], [uid, bid, stars], ...]
@@ -242,11 +245,12 @@ def main():
         testset_reloaded = json.load(f)
     testset_uid_only = [uid for (uid, _, _) in testset_reloaded]
     testset_uid_only = list(set(testset_uid_only))  # Removing duplicates
+    """
 
     user_list = request.args.get('user')
     #take input from user list
 
-    res = list(top_n_iid_only.keys())[0]
+    # res = list(top_n_iid_only.keys())[0]
 
 
     # Request-handler for returning list of business_id recommendations for specified testset user
@@ -255,7 +259,7 @@ def main():
     # Returns "[['ReX09lhufLTAx19krkltDA', 'C_uHOxo1zIJaQuzAY6JvxQ']]", bussiness_id list
     recommend_list = top_n_iid_only[user_list]
     ans = ' '.join(str(v) for v in recommend_list)
-    return ans
+    return json.dumps(recommend_list)
 
 @app.route('/searchuser', methods = ['GET'])
 def searchuser():

@@ -8,6 +8,9 @@ from surprise import Dataset, Reader, BaselineOnly, dump
 from surprise.model_selection import train_test_split
 import mysql.connector
 from mysql.connector import errorcode
+from flask import Flask,jsonify
+
+app = Flask(__name__)
 
 
 def get_top_n(predictions, n=10) -> defaultdict:
@@ -138,6 +141,25 @@ def preparation(algo_progress_dir: str = "./algo_checkpoints/") -> list:
     ret.append(f"{algo_progress_dir}testset_final_json_{algo_name}.json")
     return ret
 
+@app.route('/sampleurl',methods = ['GET'])
+def samplerequestfunction():
+    required_params = ['name', 'age']
+    missing_params = [key for key in required_params if key not in request.args.keys()]
+
+    if len(missing_params)==0:
+        data = {
+                "name": request.argv['name'],
+                "age": request.argv['age']
+               }
+
+        return jsonify(data)
+    else:
+         resp = {
+                 "status":"failure",
+                 "error" : "missing parameters",
+                 "message" : "Provide %s in request" %(missing_params)
+                }
+         return jsonify(resp)
 
 def main():
     [
@@ -239,4 +261,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    port = 8000
+    app.run(host='0.0.0.0',port=port)

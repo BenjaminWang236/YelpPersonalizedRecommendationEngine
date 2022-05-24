@@ -354,7 +354,7 @@ from flask import current_app,send_from_directory
 
 @app.route('/uploads/<path:filename>', methods=['GET', 'POST'])
 def download(filename):
-    uploads = os.path.join(current_app.root_path, 'Upload')
+    uploads = os.path.join(current_app.root_path, 'Photo')
     print(uploads)
     return send_from_directory(directory=uploads, filename=filename)
 

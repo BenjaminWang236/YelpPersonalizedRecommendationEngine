@@ -1,4 +1,3 @@
-package com.company;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -28,9 +27,9 @@ public class Main {
     private static JSONParser jsonParser;
 
     public static void main(String[] args) {
-	    connectJdbcToAwsRdb();
-	    if (conn != null) {
-	        populateTables();
+        connectJdbcToAwsRdb();
+        if (conn != null) {
+            populateTables();
         }
     }
 
@@ -56,16 +55,33 @@ public class Main {
     private static void populateTables() {
         createCatgSet();
         jsonParser = new JSONParser();
+        deleteUsers();
 //        populateUsers();
 //        populateBusinesses();
 //        populateCategories();
 //        populateSubcategories();
-        populateAttributes();
+//        populateAttributes();
 //        populateReviews();
     }
-
+    private static void deleteUsers() {
+        try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM Users WHERE uid = (?)")) {
+            try (FileReader file = new FileReader("yelp_dataset/yelp_academic_dataset_user_difference.json")) {
+                BufferedReader br = new BufferedReader(file);
+                String line;
+                while ((line = br.readLine()) != null) {
+                    JSONObject jsonObject = (JSONObject) jsonParser.parse(line);
+                    stmt.setString(1, jsonObject.get("user_id").toString());
+                    stmt.executeUpdate();
+                }
+            } catch (IOException | ParseException e) {
+                e.printStackTrace();
+            }
+        } catch (SQLException err) {
+        err.printStackTrace();
+        }
+    }
     private static void populateUsers() {
-        try (PreparedStatement stmt = conn.prepareStatement("INSERT INTO Users VALUES (?,?,?,?,?,?,?)")) {
+        try (PreparedStatement stmt = conn.prepareStatement("INSERT IGNORE INTO Users VALUES (?,?,?,?,?)")) {
             try (FileReader file = new FileReader("YelpDataset-CptS451/yelp_user.json")) {
                 BufferedReader br = new BufferedReader(file);
                 String line;
@@ -78,14 +94,14 @@ public class Main {
                     java.sql.Date sqlDate = new java.sql.Date(date.getTime());
                     stmt.setDate(3, sqlDate);
                     stmt.setInt(4, Integer.parseInt(jsonObject.get("review_count").toString()));
-                    JSONArray friends = (JSONArray) jsonObject.get("friends");
-                    stmt.setInt(5, friends.size());
-                    stmt.setDouble(6, (double) jsonObject.get("average_stars"));
-                    JSONObject voteObj = (JSONObject) jsonObject.get("votes");
-                    int voteCount = Integer.parseInt(voteObj.get("funny").toString())
-                            + Integer.parseInt(voteObj.get("useful").toString())
-                            + Integer.parseInt(voteObj.get("cool").toString());
-                    stmt.setInt(7, voteCount);
+//                    JSONArray friends = (JSONArray) jsonObject.get("friends");
+//                    stmt.setInt(5, friends.size());
+                    stmt.setDouble(5, (double) jsonObject.get("average_stars"));
+//                    JSONObject voteObj = (JSONObject) jsonObject.get("votes");
+//                    int voteCount = Integer.parseInt(voteObj.get("funny").toString())
+//                            + Integer.parseInt(voteObj.get("useful").toString())
+//                            + Integer.parseInt(voteObj.get("cool").toString());
+//                    stmt.setInt(6, voteCount);
                     stmt.executeUpdate();
                 }
                 br.close();
@@ -101,7 +117,7 @@ public class Main {
     }
 
     private static void populateBusinesses() {
-        try (PreparedStatement stmt = conn.prepareStatement("INSERT INTO Businesses VALUES (?,?,?,?,?,?,?)")) {
+        try (PreparedStatement stmt = conn.prepareStatement("INSERT IGNORE INTO Businesses VALUES (?,?,?,?,?,?,?)")) {
             try (FileReader file = new FileReader("YelpDataset-CptS451/yelp_business.json")) {
                 BufferedReader br = new BufferedReader(file);
                 String line;
@@ -134,7 +150,7 @@ public class Main {
     }
 
     private static void populateCategories() {
-        try (PreparedStatement stmt = conn.prepareStatement("INSERT INTO Categories VALUES (?,?)")) {
+        try (PreparedStatement stmt = conn.prepareStatement("INSERT IGNORE INTO Categories VALUES (?,?)")) {
             try (FileReader file = new FileReader("YelpDataset-CptS451/yelp_business.json")) {
                 BufferedReader br = new BufferedReader(file);
                 String line;
@@ -163,7 +179,7 @@ public class Main {
     }
 
     private static void populateSubcategories() {
-        try (PreparedStatement stmt = conn.prepareStatement("INSERT INTO Subcategories VALUES (?,?)")) {
+        try (PreparedStatement stmt = conn.prepareStatement("INSERT IGNORE INTO Subcategories VALUES (?,?)")) {
             try (FileReader file = new FileReader("YelpDataset-CptS451/yelp_business.json")) {
                 BufferedReader br = new BufferedReader(file);
                 String line;
@@ -231,7 +247,7 @@ public class Main {
     }
 
     private static void populateReviews() {
-        try (PreparedStatement stmt = conn.prepareStatement("INSERT INTO Reviews VALUES (?,?,?,?,?,?,?)")) {
+        try (PreparedStatement stmt = conn.prepareStatement("INSERT IGNORE INTO Reviews VALUES (?,?,?,?,?,?,?)")) {
             try (FileReader file = new FileReader("YelpDataset-CptS451/yelp_review.json")) {
                 BufferedReader br = new BufferedReader(file);
                 String line;
@@ -298,3 +314,4 @@ public class Main {
         catgSet.add("Transportation");
     }
 }
+

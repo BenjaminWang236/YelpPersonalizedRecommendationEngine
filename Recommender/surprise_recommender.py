@@ -10,7 +10,7 @@ import mysql.connector
 from mysql.connector import errorcode
 from flask import Flask,jsonify,request
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 
 def get_top_n(predictions, n=10) -> defaultdict:
@@ -320,7 +320,43 @@ def searchbusiness():
     else:
         return "Record Not Found!"
 
+@app.route('/reviews', methods = ['GET'])
+def reviews():
+    try:
+        cnx = mysql.connector.connect(
+            user="admin",
+            password="606HaoYunLai606!",
+            port="3306",
+            host="database-1.c50spqkkfz7j.us-west-1.rds.amazonaws.com",
+            database="db",
+        )
+    except mysql.connector.Error as err:
+        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+            print("Something is wrong with your user name or password")
+        elif err.errno == errorcode.ER_BAD_DB_ERROR:
+            print("Database does not exist")
+        else:
+            print(err)
+        exit()
+    print("Successfully connected to the database")
+    business_search = request.args.get('business')
+    q="Select content from Reviews where bid='{0}'".format(business_search)
+    cursor = cnx.cursor()
+    cursor.execute(q)
+    row=cursor.fetchone()
+    if(row):
+        return json.dumps(row, indent=4, sort_keys=True, default=str)
+    else:
+        return "Record Not Found!"
 
+
+from flask import current_app,send_from_directory
+
+@app.route('/uploads/<path:filename>', methods=['GET', 'POST'])
+def download(filename):
+    uploads = os.path.join(current_app.root_path, 'Photo')
+    print(uploads)
+    return send_from_directory(directory=uploads, filename=filename)
 
 
 if __name__ == "__main__":

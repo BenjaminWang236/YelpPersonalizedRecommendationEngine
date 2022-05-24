@@ -1,5 +1,6 @@
 from collections import defaultdict
 import json
+import os
 from pathlib import Path
 import requests as req
 import pandas as pd
@@ -354,7 +355,7 @@ from flask import current_app,send_from_directory
 
 @app.route('/uploads/<path:filename>', methods=['GET', 'POST'])
 def download(filename):
-    uploads = os.path.join(current_app.root_path, 'Photo')
+    uploads = os.path.join(current_app.root_path, 'Photos/photos/')
     print(uploads)
     return send_from_directory(directory=uploads, filename=filename)
 

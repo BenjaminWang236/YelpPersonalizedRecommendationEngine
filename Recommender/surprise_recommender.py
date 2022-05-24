@@ -8,9 +8,9 @@ from surprise import Dataset, Reader, BaselineOnly, dump
 from surprise.model_selection import train_test_split
 import mysql.connector
 from mysql.connector import errorcode
-from flask import Flask,jsonify,request
+from flask import Flask, jsonify, request
 
-app = Flask(__name__)
+app = Flask(__file__)
 
 
 def get_top_n(predictions, n=10) -> defaultdict:
@@ -133,24 +133,28 @@ def preparation(algo_progress_dir: str = "./algo_checkpoints/") -> list:
             }
         )
     ]
-    algo_name = str(ret[0].__class__.__name__)
-    ret.append(f"{algo_progress_dir}algo_final_serialize_{algo_name}")
-    ret.append(f"{algo_progress_dir}predictions_final_serialize_{algo_name}")
-    ret.append(f"{algo_progress_dir}top_n_final_json_{algo_name}.json")
-    ret.append(f"{algo_progress_dir}top_n_iid_final_json_{algo_name}.json")
-    ret.append(f"{algo_progress_dir}testset_final_json_{algo_name}.json")
+    algo_file = str(ret[0].__class__.__file__)
+    ret.append(f"{algo_progress_dir}algo_final_serialize_{algo_file}")
+    ret.append(f"{algo_progress_dir}predictions_final_serialize_{algo_file}")
+    ret.append(f"{algo_progress_dir}top_n_final_json_{algo_file}.json")
+    ret.append(f"{algo_progress_dir}top_n_iid_final_json_{algo_file}.json")
+    ret.append(f"{algo_progress_dir}testset_final_json_{algo_file}.json")
+    ret.append(f"{algo_progress_dir}test_users_{algo_file}.json")
     return ret
 
-@app.route('/sampleurl', methods = ['POST'])
+
+@app.route("/sampleurl", methods=["POST"])
 def samplefunction():
-    #access your DB get your results here
-    user = request.args.get('nm')
-    data = {"data":user}
+    # access your DB get your results here
+    user = request.args.get("nm")
+    data = {"data": user}
     "return jsonify(data)"
     return user
 
-@app.route('/recommend', methods = ['POST'])
+
+@app.route("/recommend", methods=["POST"])
 def main():
+    rec_setting_file = "recommender_settings.json"
     [
         use_prev_top_n,
         use_prev_predictions,
@@ -159,14 +163,15 @@ def main():
         num_to_recommend,
         file_path,
         algo_progress_dir,
-    ] = load_settings()
+    ] = load_settings(rec_setting_file)
     [
         algo,
-        file_name,
-        pred_name,
-        top_n_name,
-        top_n_iid_name,
-        testset_name,
+        train_file,
+        pred_file,
+        top_n_file,
+        top_n_iid_file,
+        testset_file,
+        test_users_file,
     ] = preparation(algo_progress_dir)
 
     """
@@ -177,13 +182,13 @@ def main():
     Save the recommendations, then use them to respond to user requests.
     """
     if use_prev_top_n:
-        with open(top_n_name, "r") as f:
+        with open(top_n_file, "r") as f:
             top_n = json.load(f)
-        with open(top_n_iid_name, "r") as f:
+        with open(top_n_iid_file, "r") as f:
             top_n_iid_only = json.load(f)
     else:
         if use_prev_predictions:
-            predictions, _ = dump.load(pred_name)
+            predictions, _ = dump.load(pred_file)
         else:
             # Import the dataset & prepare it
             reader = Reader(
@@ -198,28 +203,45 @@ def main():
                 df = read_sql_into_dataframe()
                 data = Dataset.load_from_df(df=df, reader=reader)
             trainset, testset = train_test_split(data, test_size=0.25)
-            with open(testset_name, "w") as f:
+            with open(testset_file, "w") as f:
                 json.dump(testset, f)
+            testset_uid_only = list(
+                set([uid for (uid, _, _) in testset])
+            )  # Removing duplicates
+            with open(test_users_file, "w") as f:
+                json.dump(testset_uid_only, f)
             if use_prev_trained_model:
-                _, algo = dump.load(file_name)
+                _, algo = dump.load(train_file)
             else:
                 algo.fit(trainset)
-                dump.dump(file_name, algo=algo, verbose=1)
-                use_prev_trained_model = True
+                dump.dump(train_file, algo=algo, verbose=1)
+                # use_prev_trained_model = True
+                with open(rec_setting_file, "r+") as f:
+                    setting_dict = json.load(f)
+                    setting_dict["use_prev_trained_model"] = True
+                    json.dump(setting_dict, f)
             predictions = algo.test(testset)
-            dump.dump(pred_name, predictions=predictions, verbose=1)
-            use_prev_predictions = True
+            dump.dump(pred_file, predictions=predictions, verbose=1)
+            # use_prev_predictions = True
+            with open(rec_setting_file, "r+") as f:
+                setting_dict = json.load(f)
+                setting_dict["use_prev_predictions"] = True
+                json.dump(setting_dict, f)
             # print(predictions[0:10])
         top_n = get_top_n(predictions, n=num_to_recommend)
-        with open(top_n_name, "w") as f:
+        with open(top_n_file, "w") as f:
             json.dump(top_n, f)
         top_n_iid_only = defaultdict(list)
         for uid, user_ratings in top_n.items():
             top_n_iid_only[uid].append([iid for (iid, _) in user_ratings])
             # print(uid, [iid for (iid, _) in user_ratings])
-        with open(top_n_iid_name, "w") as f:
+        with open(top_n_iid_file, "w") as f:
             json.dump(top_n_iid_only, f)
-        use_prev_top_n = True
+        # use_prev_top_n = True
+        with open(rec_setting_file, "r+") as f:
+            setting_dict = json.load(f)
+            setting_dict["use_prev_top_n"] = True
+            json.dump(setting_dict, f)
 
     """
     # debug print-outs: Comment out in final version
@@ -237,31 +259,31 @@ def main():
 
     """
     # Request-handler for test-user-ids
-    # Note: The test-users are in testset, saved to testset_name file in algo_checkpoints dir.
+    # Note: The test-users are in testset, saved to testset_file file in algo_checkpoints dir.
     #       Format of testset JSON file is [[uid, bid, stars], [uid, bid, stars], ...]
     #       Extract the uid out of each test-user-id, remove duplicates, and that's the list of users
     #       to send to the frontend.
-    with open(testset_name, "r") as f:
+    with open(testset_file, "r") as f:
         testset_reloaded = json.load(f)
     testset_uid_only = [uid for (uid, _, _) in testset_reloaded]
     testset_uid_only = list(set(testset_uid_only))  # Removing duplicates
     """
 
-    user_list = request.args.get('user')
-    #take input from user list
+    user_list = request.args.get("user")
+    # take input from user list
 
     # res = list(top_n_iid_only.keys())[0]
-
 
     # Request-handler for returning list of business_id recommendations for specified testset user
     #       top_n_iid_only is the dictionary of top-n recommendations for all testset users.
     # print(top_n_iid_only["kF6HYfuRDv-yAj4W8aGqbA"])   # How to access the dictionary for specific user
     # Returns "[['ReX09lhufLTAx19krkltDA', 'C_uHOxo1zIJaQuzAY6JvxQ']]", bussiness_id list
     recommend_list = top_n_iid_only[user_list]
-    ans = ' '.join(str(v) for v in recommend_list)
+    ans = " ".join(str(v) for v in recommend_list)
     return json.dumps(recommend_list)
 
-@app.route('/searchuser', methods = ['GET'])
+
+@app.route("/searchuser", methods=["GET"])
 def searchuser():
     try:
         cnx = mysql.connector.connect(
@@ -280,18 +302,18 @@ def searchuser():
             print(err)
         exit()
     print("Successfully connected to the database")
-    user_search = request.args.get('user')
+    user_search = request.args.get("user")
     q = "SELECT * FROM Users WHERE uid='{0}'".format(user_search)
     cursor = cnx.cursor()
     cursor.execute(q)
-    row=cursor.fetchone()
-    if(row):
+    row = cursor.fetchone()
+    if row:
         return json.dumps(row, indent=4, sort_keys=True, default=str)
     else:
         return "Record Not Found!"
 
 
-@app.route('/searchbusiness', methods = ['GET'])
+@app.route("/searchbusiness", methods=["GET"])
 def searchbusiness():
     try:
         cnx = mysql.connector.connect(
@@ -310,19 +332,18 @@ def searchbusiness():
             print(err)
         exit()
     print("Successfully connected to the database")
-    business_search = request.args.get('business')
-    q="Select * from Businesses where bid='{0}'".format(business_search)
+    business_search = request.args.get("business")
+    q = "Select * from Businesses where bid='{0}'".format(business_search)
     cursor = cnx.cursor()
     cursor.execute(q)
-    row=cursor.fetchone()
-    if(row):
+    row = cursor.fetchone()
+    if row:
         return json.dumps(row, indent=4, sort_keys=True, default=str)
     else:
         return "Record Not Found!"
 
 
-
-
-if __name__ == "__main__":
+if __file__ == "__main__":
     port = 8000
-    app.run(host='0.0.0.0',port=port)
+    app.run(host="0.0.0.0", port=port)
+

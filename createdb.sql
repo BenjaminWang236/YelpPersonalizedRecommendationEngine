@@ -3,9 +3,7 @@ CREATE TABLE Users(
     uname VARCHAR(50),
     yelping_since DATE,
     review_count INTEGER,
-    friend_count INTEGER,
-    avg_stars DECIMAL,
-    vote_count INTEGER
+    avg_stars DECIMAL
 );
 
 CREATE TABLE Businesses(

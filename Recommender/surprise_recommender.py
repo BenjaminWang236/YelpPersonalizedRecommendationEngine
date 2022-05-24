@@ -10,7 +10,7 @@ import mysql.connector
 from mysql.connector import errorcode
 from flask import Flask,jsonify,request
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 
 def get_top_n(predictions, n=10) -> defaultdict:
@@ -348,6 +348,15 @@ def reviews():
         return json.dumps(row, indent=4, sort_keys=True, default=str)
     else:
         return "Record Not Found!"
+
+
+from flask import current_app,send_from_directory
+
+@app.route('/uploads/<path:filename>', methods=['GET', 'POST'])
+def download(filename):
+    uploads = os.path.join(current_app.root_path, 'Upload')
+    print(uploads)
+    return send_from_directory(directory=uploads, filename=filename)
 
 
 if __name__ == "__main__":

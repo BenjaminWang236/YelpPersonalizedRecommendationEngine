@@ -5,3 +5,4 @@ json-simple-1.1.1.jar
 .DS_Store
 *.csv
 yelp_academic_dataset_review.json
+__pycache__

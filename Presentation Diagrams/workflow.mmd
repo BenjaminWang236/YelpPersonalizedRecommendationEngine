@@ -3,15 +3,15 @@ sequenceDiagram
     participant B as Backend
     participant D as Database
     Note over F, D: user (uid), business(bid), stars(ratings), photos (pid)
+    B->>B: Import configuration, load cached data
     B->D: Query uid, bid, stars from Reviews Table
-    B->>B: Train & Predict
+    B->>B: Split, Train & Predict
     B->>F: List of available users (uid)
     F->>F: Randomly chose user (uid)
     F->>B: Request user information
     B->D: Query user data from Users Table
     B->>F: User information
-    F->>B: Recommendations request for user
-    B->>F: List of recommendations (bid's)
+    F->B: Request/Receive user's Recommendations (bid)
     F->>B: Request business information
     B->D: Query business data from Business Table
     B->>F: Business Information
@@ -22,4 +22,4 @@ sequenceDiagram
     B->D: Query pid from Photos Table
     B->>F: Requested business's photo id
     F->B: Request/Receive photo by pid
-
+    

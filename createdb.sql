@@ -52,7 +52,8 @@ CREATE TABLE Reviews(
 
 CREATE TABLE Photos (
     pid CHAR(22) PRIMARY KEY,
-    bid CHAR(22) NOT NULL
+    bid CHAR(22) NOT NULL,
+    FOREIGN KEY (bid) REFERENCES Businesses(bid) ON DELETE CASCADE
 );
 
 CREATE INDEX category_catg_i on Categories (catg);

@@ -7,7 +7,7 @@ sequenceDiagram
     B->D: Query uid, bid, stars from Reviews Table
     B->>B: Split, Train & Predict
     B->>F: List of available users (uid)
-    F->>F: Randomly chose user (uid)
+    F->>F: Randomly choose an user (uid)
     F->>B: Request user information
     B->D: Query user data from Users Table
     B->>F: User information

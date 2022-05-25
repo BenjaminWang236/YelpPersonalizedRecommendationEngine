@@ -3,13 +3,8 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.io.*;
+import java.sql.*;
 import java.text.SimpleDateFormat;
 import java.util.HashSet;
 import java.util.Set;
@@ -55,31 +50,42 @@ public class Main {
     private static void populateTables() {
         createCatgSet();
         jsonParser = new JSONParser();
-        deleteUsers();
-//        populateUsers();
-//        populateBusinesses();
-//        populateCategories();
-//        populateSubcategories();
-//        populateAttributes();
-//        populateReviews();
+        populateUsers();
+        populateBusinesses();
+        populateCategories();
+        populateSubcategories();
+        populateAttributes();
+        populateReviews();
+        populatePhotos();
+//        deleteUsers();
+//        deleteRowsInPhotos();
+//        calculateMissRate();
+//        replaceBid();
     }
-    private static void deleteUsers() {
-        try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM Users WHERE uid = (?)")) {
-            try (FileReader file = new FileReader("yelp_dataset/yelp_academic_dataset_user_difference.json")) {
+
+    private static void populatePhotos() {
+        try (PreparedStatement stmt = conn.prepareStatement("INSERT IGNORE INTO Photos VALUES (?,?)")) {
+            try (FileReader file = new FileReader("photos.json")) {
                 BufferedReader br = new BufferedReader(file);
                 String line;
                 while ((line = br.readLine()) != null) {
                     JSONObject jsonObject = (JSONObject) jsonParser.parse(line);
-                    stmt.setString(1, jsonObject.get("user_id").toString());
+                    stmt.setString(1, jsonObject.get("photo_id").toString());
+                    stmt.setString(2, jsonObject.get("business_id").toString());
                     stmt.executeUpdate();
                 }
+                br.close();
+                file.close();
+                stmt.close();
+                System.out.println("Table Photos is populated with data!");
             } catch (IOException | ParseException e) {
                 e.printStackTrace();
             }
         } catch (SQLException err) {
-        err.printStackTrace();
+            err.printStackTrace();
         }
     }
+
     private static void populateUsers() {
         try (PreparedStatement stmt = conn.prepareStatement("INSERT IGNORE INTO Users VALUES (?,?,?,?,?)")) {
             try (FileReader file = new FileReader("YelpDataset-CptS451/yelp_user.json")) {
@@ -94,14 +100,7 @@ public class Main {
                     java.sql.Date sqlDate = new java.sql.Date(date.getTime());
                     stmt.setDate(3, sqlDate);
                     stmt.setInt(4, Integer.parseInt(jsonObject.get("review_count").toString()));
-//                    JSONArray friends = (JSONArray) jsonObject.get("friends");
-//                    stmt.setInt(5, friends.size());
                     stmt.setDouble(5, (double) jsonObject.get("average_stars"));
-//                    JSONObject voteObj = (JSONObject) jsonObject.get("votes");
-//                    int voteCount = Integer.parseInt(voteObj.get("funny").toString())
-//                            + Integer.parseInt(voteObj.get("useful").toString())
-//                            + Integer.parseInt(voteObj.get("cool").toString());
-//                    stmt.setInt(6, voteCount);
                     stmt.executeUpdate();
                 }
                 br.close();
@@ -312,6 +311,108 @@ public class Main {
         catgSet.add("Restaurants");
         catgSet.add("Shopping");
         catgSet.add("Transportation");
+    }
+
+    private static void deleteUsers() {
+        try (PreparedStatement stmt = conn.prepareStatement("DELETE FROM Users WHERE uid = (?)")) {
+            try (FileReader file = new FileReader("yelp_dataset/yelp_academic_dataset_user_difference.json")) {
+                BufferedReader br = new BufferedReader(file);
+                String line;
+                while ((line = br.readLine()) != null) {
+                    JSONObject jsonObject = (JSONObject) jsonParser.parse(line);
+                    stmt.setString(1, jsonObject.get("user_id").toString());
+                    stmt.executeUpdate();
+                }
+            } catch (IOException | ParseException e) {
+                e.printStackTrace();
+            }
+        } catch (SQLException err) {
+            err.printStackTrace();
+        }
+    }
+
+    private static void deleteRowsInPhotos() {
+        try (Statement stmt = conn.createStatement()) {
+            try (FileReader file = new FileReader("photos.json")) {
+                BufferedReader br = new BufferedReader(file);
+                String line;
+                ResultSet rs;
+                while ((line = br.readLine()) != null) {
+                    JSONObject jsonObject = (JSONObject) jsonParser.parse(line);
+                    String pid = jsonObject.get("photo_id").toString();
+                    String bid = jsonObject.get("business_id").toString();
+                    String query = "SELECT * FROM Businesses WHERE bid = '" + bid + "';";
+                    rs = stmt.executeQuery(query);
+                    if (!rs.next()) {
+                        String deletionQuery = "DELETE FROM Photos WHERE pid = '" + pid + "';";
+                        stmt.execute(deletionQuery);
+                    }
+                }
+                br.close();
+                file.close();
+                stmt.close();
+                System.out.println("Deletion is done!");
+            } catch (ParseException | SQLException | IOException e) {
+                e.printStackTrace();
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+    }
+
+    private static void calculateMissRate() {
+        int misses = 0;
+        try (Statement stmt = conn.createStatement()) {
+            try (FileReader file = new FileReader(("business.json"))) {
+                BufferedReader br = new BufferedReader(file);
+                String line;
+                ResultSet rs;
+                while ((line = br.readLine()) != null) {
+                    JSONObject jsonObject = (JSONObject) jsonParser.parse(line);
+                    String bid = jsonObject.get("business_id").toString();
+                    String query = "SELECT * FROM Photos WHERE bid = '" + bid + "';";
+                    rs = stmt.executeQuery(query);
+                    if (!rs.next()) {
+                        misses++;
+                    }
+                }
+                br.close();
+                file.close();
+                stmt.close();
+                System.out.println("Calculation is done!");
+                System.out.println("The number of misses: " + misses);
+                System.out.println("The miss rate is: " + (double) misses / 20544);
+            } catch (ParseException | IOException e) {
+                e.printStackTrace();
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+    }
+
+    private static void replaceBid() {
+        try (PreparedStatement stmt = conn.prepareStatement("INSERT IGNORE INTO Photos VALUES (?,?)")) {
+            try (FileReader file = new FileReader("output.txt")) {
+                BufferedReader br = new BufferedReader(file);
+                String line;
+                while ((line = br.readLine()) != null) {
+                    String[] parameters = line.split(" ");
+                    stmt.setString(1, parameters[0]);
+                    stmt.setString(2, parameters[1]);
+                    stmt.executeUpdate();
+                }
+                br.close();
+                file.close();
+                stmt.close();
+                System.out.println("Table Photos is populated with data!");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        } catch (SQLException err) {
+            err.printStackTrace();
+        }
+
     }
 }
 

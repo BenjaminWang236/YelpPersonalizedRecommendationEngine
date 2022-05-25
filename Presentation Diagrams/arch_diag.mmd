@@ -1,0 +1,13 @@
+flowchart LR;
+    F([Frontend])-->|user_id|B(Backend);
+    B-->|list of users|F;
+    B-->|"list of recommendations (business_id's)"|F;
+    B-->|query for reviews|DB[(Database)];
+    DB-->|queried reviews|B;
+    F-->|business_id|B;
+    B-->|query for photo_id|DB;
+    DB-->|queried photo_id|B;
+    B-->|photo_id|F;
+    B---|photo retrieval|P[(Photo Storage)];
+    F-->|photo request|B;
+    B-->|requested photo|F;

@@ -50,6 +50,11 @@ CREATE TABLE Reviews(
     FOREIGN KEY (bid) REFERENCES Businesses(bid) ON DELETE CASCADE
 );
 
+CREATE TABLE Photos (
+    pid CHAR(22) PRIMARY KEY,
+    bid CHAR(22) NOT NULL
+);
+
 CREATE INDEX category_catg_i on Categories (catg);
 CREATE INDEX subcategory_subcatg_i on Subcategories (subcatg);
 CREATE INDEX attribute_attribute_i on Attributes (attribute);
